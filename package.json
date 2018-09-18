@@ -1,0 +1,17 @@
+{
+  "name": "fb-gallery-linker",
+  "version": "0.0.1",
+  "description": "Assists with links to Facebook photo galleries",
+  "main": "index.js",
+  "author": "Jonathan Williams",
+  "license": "GPL-2.0-or-later",
+  "dependencies": {
+    "command-line-args": "^5.0.2",
+    "puppeteer": "^1.8.0",
+    "url": "^0.11.0"
+  },
+  "devDependencies": {
+    "eslint-config-airbnb-base": "^13.1.0",
+    "eslint-plugin-import": "^2.14.0"
+  }
+}
