@@ -11,6 +11,10 @@ const optionDefinitions = [
 
 const options = commandLineArgs(optionDefinitions);
 
+// Setup constants here for markup dependent details that may change.
+const screenshotDivSelector = '#fbTimelinePhotosContent';
+const loginSubmitID = '#u_0_2';
+
 // Get the set ID from the URL in order to provide a filename.
 const myURL = new URL(options.url);
 const fbSetID = myURL.searchParams.get('set');
@@ -44,7 +48,7 @@ if (null === fbSetID) {
 
     await page.type('input[name=email]', process.env.FB_EMAIL, { delay: 100 });
     await page.type('input[name=pass]', process.env.FB_PASS, { delay: 100 });
-    await page.click('#u_0_2');
+    await page.click(loginSubmitID);
     await page.waitForNavigation({
       waitUntil: 'load',
     });
@@ -64,7 +68,7 @@ if (null === fbSetID) {
 
   await screenshotDOMElement(page, {
     path: 'output/' + fbSetID + '.png',
-    selector: '#fbTimelinePhotosContent',
+    selector: screenshotDivSelector,
     padding: 2,
   });
 
