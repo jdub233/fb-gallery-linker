@@ -66,6 +66,9 @@ if (null === fbSetID) {
   console.log('Write cookies to file...');
   fs.writeFileSync('./cookies', JSON.stringify(await page.cookies()), 'utf-8');
 
+  // Hides the chat status at the bottom of the page if present.
+  await page.evaluate(() => { document.querySelector('#BuddylistPagelet').style.display = 'none'; });
+
   await screenshotDOMElement(page, {
     path: 'output/' + fbSetID + '.png',
     selector: screenshotDivSelector,
