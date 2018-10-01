@@ -12,7 +12,7 @@ const optionDefinitions = [
 const options = commandLineArgs(optionDefinitions);
 
 // Setup constants here for markup dependent details that may change.
-const screenshotDivSelector = '#fbTimelinePhotosContent';
+const screenshotDivSelector = '#fbTimelinePhotosFlexgrid';
 const loginSubmitID = '#u_0_2';
 
 // Get the set ID from the URL in order to provide a filename.
