@@ -70,6 +70,7 @@ if (null === fbSetID) {
     path: 'output/' + fbSetID + '.png',
     selector: screenshotDivSelector,
     padding: 2,
+    magicOffset: 400,
   });
 
   await browser.close();
@@ -79,14 +80,18 @@ if (null === fbSetID) {
 /**
  * Takes a screenshot of a DOM element on the page, with optional padding.
  *
+ * magicOffset is a number of pixels to offset the div,
+ * for some reason this works with chromium and the current layout.
+ *
  * @param page
- * @param {!{path:string, selector:string, padding:(number|undefined)}=} opts
+ * @param {!{path:string, selector:string, padding:(number|undefined), magicOffset:number}=} opts
  * @return {!Promise<!Buffer>}
  */
 async function screenshotDOMElement(page, opts = {}) {
   const padding = 'padding' in opts ? opts.padding : 0;
   const path = 'path' in opts ? opts.path : null;
   const selector = opts.selector;
+  const magicOffset = opts.magicOffset;
 
   if (!selector) {
     throw Error('Please provide a selector.');
@@ -108,7 +113,7 @@ async function screenshotDOMElement(page, opts = {}) {
     path,
     clip: {
       x: rect.left - padding,
-      y: rect.top - padding + 400,
+      y: rect.top - padding + magicOffset,
       width: rect.width + padding * 2,
       height: rect.height + padding * 2,
     },
