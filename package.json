@@ -1,6 +1,6 @@
 {
   "name": "fb-gallery-linker",
-  "version": "0.0.1",
+  "version": "0.0.1a",
   "description": "Assists with links to Facebook photo galleries",
   "main": "index.js",
   "author": "Jonathan Williams",
