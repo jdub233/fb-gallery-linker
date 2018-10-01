@@ -70,7 +70,7 @@ if (null === fbSetID) {
     path: 'output/' + fbSetID + '.png',
     selector: screenshotDivSelector,
     padding: 2,
-    magicOffset: 400,
+    magicOffset: 357,
   });
 
   await browser.close();
