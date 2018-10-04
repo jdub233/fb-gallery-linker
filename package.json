@@ -6,6 +6,7 @@
   "author": "Jonathan Williams",
   "license": "GPL-2.0-or-later",
   "dependencies": {
+    "aws-sdk": "^2.325.0",
     "command-line-args": "^5.0.2",
     "dotenv": "^6.0.0",
     "puppeteer": "^1.8.0",

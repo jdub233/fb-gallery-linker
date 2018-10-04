@@ -1,9 +1,13 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
+const AWS = require('aws-sdk');
 const commandLineArgs = require('command-line-args');
 require('dotenv').load();
 const url = require('url');
 
+
+const s3 = new AWS.S3({ apiVersion: '2006-03-01' });
+const bucketName = process.env.S3_BUCKETNAME;
 
 const optionDefinitions = [
   { name: 'url', alias: 'u', type: String },
@@ -69,14 +73,44 @@ if (null === fbSetID) {
   // Hides the chat status at the bottom of the page if present.
   await page.evaluate(() => { document.querySelector('#BuddylistPagelet').style.display = 'none'; });
 
+  const filename = `fbset-${fbSetID}.png`;
+  const filepath = `output/${filename}`;
+
   await screenshotDOMElement(page, {
-    path: 'output/' + fbSetID + '.png',
+    path: filepath,
     selector: screenshotDivSelector,
     padding: 2,
     magicOffset: 357,
   });
 
   await browser.close();
+
+  // Upload file to s3
+  fs.readFile(filepath, (err, data) => {
+    if (err) throw err;
+
+    const params = {
+      Bucket: bucketName,
+      Key: `gallery-thumbs/${filename}`,
+      Body: data,
+      ContentType: 'image/png',
+      ACL: 'public-read',
+    };
+
+    s3.upload(params, function (s3Err, data) {
+      if (s3Err) throw s3Err;
+      console.log(`File uploaded successfully at ${data.Location}`);
+
+      const outputTag = `<a href="${options.url}"><img src="${data.Location}"/></a>`;
+      console.log(outputTag);
+
+      // Copy output tag to OS X clipboard.
+      const proc = require('child_process').spawn('pbcopy');
+      proc.stdin.write(outputTag);
+      proc.stdin.end();
+      console.log('tag copied to clipboard');
+    });
+  });
 })();
 
 
