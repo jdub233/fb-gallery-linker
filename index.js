@@ -29,6 +29,81 @@ if (fbSetID === null) {
   process.exit(1);
 }
 
+/**
+ * Takes a screenshot of a DOM element on the page, with optional padding.
+ *
+ * magicOffset is a number of pixels to offset the div,
+ * for some reason this works with chromium and the current layout.
+ *
+ * @param page
+ * @param {!{path:string, selector:string, padding:(number|undefined), magicOffset:number}=} opts
+ * @return {!Promise<!Buffer>}
+ */
+async function screenshotDOMElement(page, opts = {}) {
+  const padding = 'padding' in opts ? opts.padding : 0;
+  const path = 'path' in opts ? opts.path : null;
+  const { selector, magicOffset } = opts;
+
+  if (!selector) {
+    throw Error('Please provide a selector.');
+  }
+
+  const rect = await page.evaluate((sel) => {
+    const element = document.querySelector(sel);
+    if (!element) {
+      return null;
+    }
+    const {
+      x, y, width, height,
+    } = element.getBoundingClientRect();
+    return {
+      left: x, top: y, width, height, id: element.id,
+    };
+  }, selector);
+
+  if (!rect) {
+    throw Error(`Could not find element that matches selector: ${selector}.`);
+  }
+
+  return page.screenshot({
+    path,
+    clip: {
+      x: rect.left - padding,
+      y: rect.top - padding + magicOffset,
+      width: rect.width + padding * 2,
+      height: rect.height + padding * 2,
+    },
+  });
+}
+
+async function uploadS3(filepath, filename, info) {
+  fs.readFile(filepath, (err, data) => {
+    if (err) throw err;
+
+    const params = {
+      Bucket: bucketName,
+      Key: `gallery-thumbs/${filename}`,
+      Body: data,
+      ContentType: 'image/jpeg',
+      ACL: 'public-read',
+    };
+
+    s3.upload(params, (s3Err, s3Result) => {
+      if (s3Err) throw s3Err;
+      console.log(`File uploaded successfully at ${s3Result.Location}`);
+
+      const outputTag = `<a href="${options.url}"><img src="${s3Result.Location}" width="${info.width}" height="${info.height}"/></a>`;
+      console.log(outputTag);
+
+      // Copy output tag to OS X clipboard.
+      const proc = spawn('pbcopy');
+      proc.stdin.write(outputTag);
+      proc.stdin.end();
+      console.log('tag copied to clipboard');
+    });
+  });
+}
+
 (async () => {
   const browser = await puppeteer.launch();
   const page = await browser.newPage();
@@ -98,78 +173,3 @@ if (fbSetID === null) {
       uploadS3(scaledFile, scaledName, info);
     });
 })();
-
-async function uploadS3(filepath, filename, info) {
-  fs.readFile(filepath, (err, data) => {
-    if (err) throw err;
-
-    const params = {
-      Bucket: bucketName,
-      Key: `gallery-thumbs/${filename}`,
-      Body: data,
-      ContentType: 'image/jpeg',
-      ACL: 'public-read',
-    };
-
-    s3.upload(params, (s3Err, s3Result) => {
-      if (s3Err) throw s3Err;
-      console.log(`File uploaded successfully at ${s3Result.Location}`);
-
-      const outputTag = `<a href="${options.url}"><img src="${s3Result.Location}" width="${info.width}" height="${info.height}"/></a>`;
-      console.log(outputTag);
-
-      // Copy output tag to OS X clipboard.
-      const proc = spawn('pbcopy');
-      proc.stdin.write(outputTag);
-      proc.stdin.end();
-      console.log('tag copied to clipboard');
-    });
-  });
-}
-
-/**
- * Takes a screenshot of a DOM element on the page, with optional padding.
- *
- * magicOffset is a number of pixels to offset the div,
- * for some reason this works with chromium and the current layout.
- *
- * @param page
- * @param {!{path:string, selector:string, padding:(number|undefined), magicOffset:number}=} opts
- * @return {!Promise<!Buffer>}
- */
-async function screenshotDOMElement(page, opts = {}) {
-  const padding = 'padding' in opts ? opts.padding : 0;
-  const path = 'path' in opts ? opts.path : null;
-  const { selector, magicOffset } = opts;
-
-  if (!selector) {
-    throw Error('Please provide a selector.');
-  }
-
-  const rect = await page.evaluate((sel) => {
-    const element = document.querySelector(sel);
-    if (!element) {
-      return null;
-    }
-    const {
-      x, y, width, height,
-    } = element.getBoundingClientRect();
-    return {
-      left: x, top: y, width, height, id: element.id,
-    };
-  }, selector);
-
-  if (!rect) {
-    throw Error(`Could not find element that matches selector: ${selector}.`);
-  }
-
-  return page.screenshot({
-    path,
-    clip: {
-      x: rect.left - padding,
-      y: rect.top - padding + magicOffset,
-      width: rect.width + padding * 2,
-      height: rect.height + padding * 2,
-    },
-  });
-}
