@@ -4,7 +4,7 @@ const AWS = require('aws-sdk');
 const commandLineArgs = require('command-line-args');
 require('dotenv').load();
 const url = require('url');
-
+const sharp = require('sharp');
 
 const s3 = new AWS.S3({ apiVersion: '2006-03-01' });
 const bucketName = process.env.S3_BUCKETNAME;
@@ -75,6 +75,8 @@ if (null === fbSetID) {
 
   const filename = `fbset-${fbSetID}.png`;
   const filepath = `output/${filename}`;
+  const scaledName = `fbset-scaled-${fbSetID}.jpg`;
+  const scaledFile = `output/${scaledName}`;
 
   await screenshotDOMElement(page, {
     path: filepath,
@@ -85,7 +87,17 @@ if (null === fbSetID) {
 
   await browser.close();
 
-  // Upload file to s3
+  // Resize original png and output to jpeg.
+  sharp(filepath)
+    .resize(500, null)
+    .toFile(scaledFile)
+    .then((info) => {
+      // Upload file to s3
+      uploadS3(scaledFile, scaledName, info);
+    });
+})();
+
+async function uploadS3(filepath, filename, info) {
   fs.readFile(filepath, (err, data) => {
     if (err) throw err;
 
@@ -93,7 +105,7 @@ if (null === fbSetID) {
       Bucket: bucketName,
       Key: `gallery-thumbs/${filename}`,
       Body: data,
-      ContentType: 'image/png',
+      ContentType: 'image/jpeg',
       ACL: 'public-read',
     };
 
@@ -101,7 +113,7 @@ if (null === fbSetID) {
       if (s3Err) throw s3Err;
       console.log(`File uploaded successfully at ${data.Location}`);
 
-      const outputTag = `<a href="${options.url}"><img src="${data.Location}"/></a>`;
+      const outputTag = `<a href="${options.url}"><img src="${data.Location}" width="${info.width}" height="${info.height}"/></a>`;
       console.log(outputTag);
 
       // Copy output tag to OS X clipboard.
@@ -111,8 +123,7 @@ if (null === fbSetID) {
       console.log('tag copied to clipboard');
     });
   });
-})();
-
+}
 
 /**
  * Takes a screenshot of a DOM element on the page, with optional padding.
