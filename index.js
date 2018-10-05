@@ -76,6 +76,18 @@ async function screenshotDOMElement(page, opts = {}) {
   });
 }
 
+/**
+ * Uploads a file to an S3 bucket.
+ *
+ * The bucket name comes from the environment.
+ * Assumes valid AWS credentials.
+ * Also constructs the markup tag and copies it to the clipboard.
+ *
+ * @param filepath string Full path to the file
+ * @param filename string Name of the file as uploaded
+ * @param {!{width:number, height:number}=} info Metadata from sharp resize operation
+ * @return {!Promise<!Buffer>}
+ */
 async function uploadS3(filepath, filename, info) {
   fs.readFile(filepath, (err, data) => {
     if (err) throw err;
