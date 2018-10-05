@@ -90,6 +90,7 @@ if (null === fbSetID) {
   // Resize original png and output to jpeg.
   sharp(filepath)
     .resize(500, null)
+    .jpeg({ quality: 90 })
     .toFile(scaledFile)
     .then((info) => {
       // Upload file to s3
