@@ -73,12 +73,11 @@ if (null === fbSetID) {
   // Hides the chat status at the bottom of the page if present.
   await page.evaluate(() => { document.querySelector('#BuddylistPagelet').style.display = 'none'; });
 
-  const filename = `fbset-${fbSetID}.jpg`;
+  const filename = `fbset-${fbSetID}.png`;
   const filepath = `output/${filename}`;
 
   await screenshotDOMElement(page, {
     path: filepath,
-    type: 'jpeg',
     selector: screenshotDivSelector,
     padding: 2,
     magicOffset: 357,
@@ -94,7 +93,7 @@ if (null === fbSetID) {
       Bucket: bucketName,
       Key: `gallery-thumbs/${filename}`,
       Body: data,
-      ContentType: 'image/jpeg',
+      ContentType: 'image/png',
       ACL: 'public-read',
     };
 
