@@ -24,7 +24,7 @@ const loginSubmitID = '#u_0_2';
 const myURL = new URL(options.url);
 const fbSetID = myURL.searchParams.get('set');
 
-if (null === fbSetID) {
+if (fbSetID === null) {
   console.log('No set ID found');
   process.exit(1);
 }
@@ -140,21 +140,23 @@ async function uploadS3(filepath, filename, info) {
 async function screenshotDOMElement(page, opts = {}) {
   const padding = 'padding' in opts ? opts.padding : 0;
   const path = 'path' in opts ? opts.path : null;
-  const selector = opts.selector;
-  const magicOffset = opts.magicOffset;
+  const { selector, magicOffset } = opts;
 
   if (!selector) {
     throw Error('Please provide a selector.');
   }
 
-
-  const rect = await page.evaluate(selector => {
-    const element = document.querySelector(selector);
+  const rect = await page.evaluate((sel) => {
+    const element = document.querySelector(sel);
     if (!element) {
       return null;
     }
-    const { x, y, width, height } = element.getBoundingClientRect();
-    return { left: x, top: y, width, height, id: element.id };
+    const {
+      x, y, width, height,
+    } = element.getBoundingClientRect();
+    return {
+      left: x, top: y, width, height, id: element.id,
+    };
   }, selector);
 
   if (!rect) {
