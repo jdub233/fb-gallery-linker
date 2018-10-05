@@ -5,6 +5,7 @@ const commandLineArgs = require('command-line-args');
 require('dotenv').load();
 const url = require('url');
 const sharp = require('sharp');
+const { spawn } = require('child_process');
 
 const s3 = new AWS.S3({ apiVersion: '2006-03-01' });
 const bucketName = process.env.S3_BUCKETNAME;
@@ -63,7 +64,7 @@ if (null === fbSetID) {
     });
 
     if (await page.$('input[name=email]') !== null) { // login failed
-      return Promise.reject('Error: login failed');
+      return Promise.reject(new Error('Error: login failed'));
     }
   }
 
@@ -110,15 +111,15 @@ async function uploadS3(filepath, filename, info) {
       ACL: 'public-read',
     };
 
-    s3.upload(params, function (s3Err, data) {
+    s3.upload(params, (s3Err, s3Result) => {
       if (s3Err) throw s3Err;
-      console.log(`File uploaded successfully at ${data.Location}`);
+      console.log(`File uploaded successfully at ${s3Result.Location}`);
 
-      const outputTag = `<a href="${options.url}"><img src="${data.Location}" width="${info.width}" height="${info.height}"/></a>`;
+      const outputTag = `<a href="${options.url}"><img src="${s3Result.Location}" width="${info.width}" height="${info.height}"/></a>`;
       console.log(outputTag);
 
       // Copy output tag to OS X clipboard.
-      const proc = require('child_process').spawn('pbcopy');
+      const proc = spawn('pbcopy');
       proc.stdin.write(outputTag);
       proc.stdin.end();
       console.log('tag copied to clipboard');
@@ -149,16 +150,18 @@ async function screenshotDOMElement(page, opts = {}) {
 
   const rect = await page.evaluate(selector => {
     const element = document.querySelector(selector);
-    if (!element)
+    if (!element) {
       return null;
+    }
     const { x, y, width, height } = element.getBoundingClientRect();
     return { left: x, top: y, width, height, id: element.id };
   }, selector);
 
-  if (!rect)
+  if (!rect) {
     throw Error(`Could not find element that matches selector: ${selector}.`);
+  }
 
-  return await page.screenshot({
+  return page.screenshot({
     path,
     clip: {
       x: rect.left - padding,
