@@ -5,6 +5,7 @@ const commandLineArgs = require('command-line-args');
 require('dotenv').load();
 const url = require('url');
 const sharp = require('sharp');
+const { spawn } = require('child_process');
 
 const s3 = new AWS.S3({ apiVersion: '2006-03-01' });
 const bucketName = process.env.S3_BUCKETNAME;
@@ -23,9 +24,96 @@ const loginSubmitID = '#u_0_2';
 const myURL = new URL(options.url);
 const fbSetID = myURL.searchParams.get('set');
 
-if (null === fbSetID) {
+if (fbSetID === null) {
   console.log('No set ID found');
   process.exit(1);
+}
+
+/**
+ * Takes a screenshot of a DOM element on the page, with optional padding.
+ *
+ * magicOffset is a number of pixels to offset the div,
+ * for some reason this works with chromium and the current layout.
+ *
+ * @param page
+ * @param {!{path:string, selector:string, padding:(number|undefined), magicOffset:number}=} opts
+ * @return {!Promise<!Buffer>}
+ */
+async function screenshotDOMElement(page, opts = {}) {
+  const padding = 'padding' in opts ? opts.padding : 0;
+  const path = 'path' in opts ? opts.path : null;
+  const { selector, magicOffset } = opts;
+
+  if (!selector) {
+    throw Error('Please provide a selector.');
+  }
+
+  const rect = await page.evaluate((sel) => {
+    const element = document.querySelector(sel);
+    if (!element) {
+      return null;
+    }
+    const {
+      x, y, width, height,
+    } = element.getBoundingClientRect();
+    return {
+      left: x, top: y, width, height, id: element.id,
+    };
+  }, selector);
+
+  if (!rect) {
+    throw Error(`Could not find element that matches selector: ${selector}.`);
+  }
+
+  return page.screenshot({
+    path,
+    clip: {
+      x: rect.left - padding,
+      y: rect.top - padding + magicOffset,
+      width: rect.width + padding * 2,
+      height: rect.height + padding * 2,
+    },
+  });
+}
+
+/**
+ * Uploads a file to an S3 bucket.
+ *
+ * The bucket name comes from the environment.
+ * Assumes valid AWS credentials.
+ * Also constructs the markup tag and copies it to the clipboard.
+ *
+ * @param filepath string Full path to the file
+ * @param filename string Name of the file as uploaded
+ * @param {!{width:number, height:number}=} info Metadata from sharp resize operation
+ * @return {!Promise<!Buffer>}
+ */
+async function uploadS3(filepath, filename, info) {
+  fs.readFile(filepath, (err, data) => {
+    if (err) throw err;
+
+    const params = {
+      Bucket: bucketName,
+      Key: `gallery-thumbs/${filename}`,
+      Body: data,
+      ContentType: 'image/jpeg',
+      ACL: 'public-read',
+    };
+
+    s3.upload(params, (s3Err, s3Result) => {
+      if (s3Err) throw s3Err;
+      console.log(`File uploaded successfully at ${s3Result.Location}`);
+
+      const outputTag = `<a href="${options.url}"><img src="${s3Result.Location}" width="${info.width}" height="${info.height}"/></a>`;
+      console.log(outputTag);
+
+      // Copy output tag to OS X clipboard.
+      const proc = spawn('pbcopy');
+      proc.stdin.write(outputTag);
+      proc.stdin.end();
+      console.log('tag copied to clipboard');
+    });
+  });
 }
 
 (async () => {
@@ -63,7 +151,7 @@ if (null === fbSetID) {
     });
 
     if (await page.$('input[name=email]') !== null) { // login failed
-      return Promise.reject('Error: login failed');
+      return Promise.reject(new Error('Error: login failed'));
     }
   }
 
@@ -96,75 +184,6 @@ if (null === fbSetID) {
       // Upload file to s3
       uploadS3(scaledFile, scaledName, info);
     });
+  // Return something in order to satisfy the consistent-return rule.
+  return true;
 })();
-
-async function uploadS3(filepath, filename, info) {
-  fs.readFile(filepath, (err, data) => {
-    if (err) throw err;
-
-    const params = {
-      Bucket: bucketName,
-      Key: `gallery-thumbs/${filename}`,
-      Body: data,
-      ContentType: 'image/jpeg',
-      ACL: 'public-read',
-    };
-
-    s3.upload(params, function (s3Err, data) {
-      if (s3Err) throw s3Err;
-      console.log(`File uploaded successfully at ${data.Location}`);
-
-      const outputTag = `<a href="${options.url}"><img src="${data.Location}" width="${info.width}" height="${info.height}"/></a>`;
-      console.log(outputTag);
-
-      // Copy output tag to OS X clipboard.
-      const proc = require('child_process').spawn('pbcopy');
-      proc.stdin.write(outputTag);
-      proc.stdin.end();
-      console.log('tag copied to clipboard');
-    });
-  });
-}
-
-/**
- * Takes a screenshot of a DOM element on the page, with optional padding.
- *
- * magicOffset is a number of pixels to offset the div,
- * for some reason this works with chromium and the current layout.
- *
- * @param page
- * @param {!{path:string, selector:string, padding:(number|undefined), magicOffset:number}=} opts
- * @return {!Promise<!Buffer>}
- */
-async function screenshotDOMElement(page, opts = {}) {
-  const padding = 'padding' in opts ? opts.padding : 0;
-  const path = 'path' in opts ? opts.path : null;
-  const selector = opts.selector;
-  const magicOffset = opts.magicOffset;
-
-  if (!selector) {
-    throw Error('Please provide a selector.');
-  }
-
-
-  const rect = await page.evaluate(selector => {
-    const element = document.querySelector(selector);
-    if (!element)
-      return null;
-    const { x, y, width, height } = element.getBoundingClientRect();
-    return { left: x, top: y, width, height, id: element.id };
-  }, selector);
-
-  if (!rect)
-    throw Error(`Could not find element that matches selector: ${selector}.`);
-
-  return await page.screenshot({
-    path,
-    clip: {
-      x: rect.left - padding,
-      y: rect.top - padding + magicOffset,
-      width: rect.width + padding * 2,
-      height: rect.height + padding * 2,
-    },
-  });
-}
