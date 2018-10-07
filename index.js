@@ -184,4 +184,6 @@ async function uploadS3(filepath, filename, info) {
       // Upload file to s3
       uploadS3(scaledFile, scaledName, info);
     });
+  // Return something in order to satisfy the consistent-return rule.
+  return true;
 })();
